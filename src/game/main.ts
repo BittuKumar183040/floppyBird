@@ -1,22 +1,27 @@
-import { height, width } from './config/config';
+import { BASE_HEIGHT, BASE_WIDTH } from './config/config';
+import { GameOver } from './scenes/GameOver';
 import { Intro } from './scenes/Intro';
 import { LevelI } from './scenes/LevelI'
 import { AUTO, Game, Types } from 'phaser';
 
 const config: Types.Core.GameConfig = {
     type: AUTO,
-    width: width,
-    height: height,
+    width: BASE_WIDTH,
+    height: BASE_HEIGHT,
     parent: 'game-container',
     backgroundColor: '#028af8',
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
     scene: [
-        LevelI,
         Intro,
+        LevelI, 
+        GameOver,
     ],
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { x: 0, y: 500 },
             debug: false
         }
     }

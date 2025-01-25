@@ -1,7 +1,10 @@
 
+const aspectRatio = 16 / 9;
+export const BASE_WIDTH = 1920;
+export const BASE_HEIGHT = 1080;
 
-export const width = 1024;
-export const height = 768;
+// Use adjustedWidth and adjustedHeight in your game configuration
+
 
 
 // colors

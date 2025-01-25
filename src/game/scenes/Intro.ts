@@ -1,6 +1,6 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
-import { primary, width } from '../config/config';
+import { BASE_HEIGHT, BASE_WIDTH, primary } from '../config/config';
 
 export class Intro extends Scene {
     constructor() {
@@ -16,12 +16,14 @@ export class Intro extends Scene {
     }
 
     create() {
-        this.add.image(width / 2, 384, 'background');
-        this.add.image(width / 2, 350, 'logo').setDepth(100);
+        const screen = this.add.image(0, 0, 'background').setOrigin(0,0);
+        screen.displayHeight = BASE_HEIGHT;
+        screen.displayWidth = BASE_WIDTH;
+        this.add.image(BASE_WIDTH / 2, 350, 'logo').setDepth(100);
 
-        const startButton = this.add.text(width / 2, 650, 'START', {
+        const startButton = this.add.text(BASE_WIDTH / 2, 650, 'START', {
             fontFamily: 'Arial Black',
-            fontSize: '25px',
+            fontSize: '55px',
             color: '#ffffff',
             stroke: "#000000",
             strokeThickness: 5,
