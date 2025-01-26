@@ -9,14 +9,13 @@ const config: Types.Core.GameConfig = {
     width: BASE_WIDTH,
     height: BASE_HEIGHT,
     parent: 'game-container',
-    backgroundColor: '#028af8',
+    backgroundColor: '#fff',
     scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
     },
     scene: [
         Intro,
-        LevelI, 
+        LevelI,
         GameOver,
     ],
     physics: {
