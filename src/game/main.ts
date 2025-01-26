@@ -12,6 +12,7 @@ const config: Types.Core.GameConfig = {
     backgroundColor: '#fff',
     scale: {
         mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.NO_CENTER
     },
     scene: [
         Intro,
