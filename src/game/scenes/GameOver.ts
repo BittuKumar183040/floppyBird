@@ -1,6 +1,12 @@
 import { Scene } from "phaser";
 import { BASE_HEIGHT, BASE_WIDTH, primary } from "../config/config";
-import { setHeight } from "../controller/methods";
+import { getHighScore, setHeight } from "../controller/methods";
+
+interface ObjProp {
+	score : number | undefined
+
+}
+
 
 export class GameOver extends Scene {
 	constructor() {
@@ -12,12 +18,24 @@ export class GameOver extends Scene {
 		this.load.image('gameover', 'gameover.png');
 	}
 
-	create() {
-
+	create(obj : ObjProp) {
 		
 		const logo = this.add.image(BASE_WIDTH/2, BASE_HEIGHT/3 , 'gameover').setDepth(100);
 		setHeight(logo, 900);
 		
+		this.add.text(BASE_WIDTH - 40, 100, `SCORE : ${obj.score ? obj.score : 0}`, {
+			fontFamily: 'Arial Black',
+			fontSize: '55px',
+			color: '#ffffff'
+		}).setOrigin(1).setDepth(100)
+
+		this.add.text(BASE_WIDTH/2, 70, `HIGH SCORE : ${getHighScore()}`, {
+			fontFamily: 'Arial Black',
+			fontSize: '40px',
+			color: '#ffffff'
+		}).setOrigin(0.5).setDepth(100)
+
+
 		this.add.text(BASE_WIDTH / 2, BASE_HEIGHT - 350, 'PLAY AGAIN?', {
 			fontFamily: 'Arial Black',
 			fontSize: '55px',
@@ -76,5 +94,8 @@ export class GameOver extends Scene {
 			btn_no.setStyle({ color: "#ffffff"});
 			this.input.manager.canvas.style.cursor = 'pointer';
 		});
+
+
+
 	}
 }	

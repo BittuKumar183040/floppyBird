@@ -12,7 +12,7 @@ const config: Types.Core.GameConfig = {
     backgroundColor: '#028af8',
     scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
+        autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
     },
     scene: [
         Intro,
@@ -27,9 +27,11 @@ const config: Types.Core.GameConfig = {
     }
 };
 
+let currentGame: Phaser.Game;
+
 const StartGame = (parent: any) => {
-    return new Game({ ...config, parent });
+    currentGame = new Game({ ...config, parent });
+    return currentGame;
 }
 
 export default StartGame;
-

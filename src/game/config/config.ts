@@ -1,11 +1,7 @@
 
-const aspectRatio = 16 / 9;
-export const BASE_WIDTH = 1920;
-export const BASE_HEIGHT = 1080;
-
-// Use adjustedWidth and adjustedHeight in your game configuration
-
-
+const ration = Math.max(window.innerWidth / window.innerHeight, window.innerHeight / window.innerWidth)
+export let BASE_HEIGHT = 1080;
+export let BASE_WIDTH = ration * BASE_HEIGHT
 
 // colors
 export const primary = "#b4ff7d";

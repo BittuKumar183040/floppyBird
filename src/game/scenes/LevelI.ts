@@ -1,7 +1,7 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config/config';
-import { setHeight } from '../controller/methods';
+import { getHighScore, setHeight } from '../controller/methods';
 
 
 const width = BASE_WIDTH;
@@ -83,7 +83,7 @@ export class LevelI extends Scene {
     handleCollision() {
         console.log('Game Over');
         this.scene.pause()
-        this.scene.start('GameOver')
+        this.scene.start('GameOver', {score:this.scoreNumber})
     }
 
     removePipe(pipe: Phaser.Physics.Arcade.Sprite) {
@@ -131,14 +131,19 @@ export class LevelI extends Scene {
                 sprite.flipY
             ) {
                 sprite.setData('scored', true);
-                this.incrementScore(); 
+                this.handleScoreCount(); 
             }
             return null;
         });
     }
 
-    incrementScore() {
+    handleScoreCount() {
         this.scoreNumber += 1;
+        const high_score = ~~getHighScore()
+        if(this.scoreNumber > high_score ){
+            localStorage.setItem("highscore",""+this.scoreNumber)
+        }
+
         this.scoreText.setText(`SCORE: ${this.scoreNumber}`);
     }
 }
