@@ -2,6 +2,7 @@ import { BASE_HEIGHT, BASE_WIDTH } from './config/config';
 import { GameOver } from './scenes/GameOver';
 import { Intro } from './scenes/Intro';
 import { LevelI } from './scenes/LevelI'
+import { LevelII } from './scenes/LevelII'
 import { AUTO, Game, Types } from 'phaser';
 
 const config: Types.Core.GameConfig = {
@@ -17,6 +18,7 @@ const config: Types.Core.GameConfig = {
     scene: [
         Intro,
         LevelI,
+        LevelII,
         GameOver,
     ],
     physics: {

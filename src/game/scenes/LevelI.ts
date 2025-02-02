@@ -17,7 +17,7 @@ export class LevelI extends Scene {
     pipeGroup!: Phaser.Physics.Arcade.Group;
     pipeTimer!: Phaser.Time.TimerEvent;
     private currentPipePos = width;
-    
+
     constructor() {
         super('LevelI');
     }
@@ -36,9 +36,9 @@ export class LevelI extends Scene {
     }
 
     create() {
-        console.log("Scene loaded")
+
         this.physics.world.gravity.y = 800;
-        const screen = this.add.image(0, 0, 'background').setInteractive().setOrigin(0,0);
+        const screen = this.add.image(0, 0, 'background').setInteractive().setOrigin(0, 0);
         screen.displayHeight = height;
         screen.displayWidth = width;
         const logo = this.add.image(120, 50, 'logo').setDepth(200);
@@ -74,16 +74,14 @@ export class LevelI extends Scene {
             loop: true,
         });
 
-        // Collision handling
         this.physics.add.collider(bird, this.pipeGroup, this.handleCollision, undefined, this);
 
         EventBus.emit('current-scene-ready', this);
     }
 
     handleCollision() {
-        console.log('Game Over');
         this.scene.pause()
-        this.scene.start('GameOver', {score:this.scoreNumber})
+        this.scene.start('GameOver', { score: this.scoreNumber })
     }
 
     removePipe(pipe: Phaser.Physics.Arcade.Sprite) {
@@ -92,22 +90,22 @@ export class LevelI extends Scene {
 
     PipesSpawn() {
         const pipeY = Phaser.Math.Between(-200, 250); // Random vertical position
-    
+
         const pipeTop = this.pipeGroup.create(this.currentPipePos, pipeY, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
         setHeight(pipeTop, PIPE_WIDTH);
         pipeTop.setImmovable(true);
         pipeTop.setVelocityX(this.pipeVelocity);
         pipeTop.setFlipY(true);
-    
-        const pipeBottom = this.pipeGroup.create(this.currentPipePos, pipeTop.displayHeight+pipeY + 200, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
+
+        const pipeBottom = this.pipeGroup.create(this.currentPipePos, pipeTop.displayHeight + pipeY + 200, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
         setHeight(pipeBottom, PIPE_WIDTH);
         pipeBottom.setImmovable(true);
         pipeBottom.setVelocityX(this.pipeVelocity);
-    
+
         this.currentPipePos = this.currentPipePos + PIPE_GAP;
-    
+
         pipeTop.setData('scored', false);
-    
+
         this.pipeGroup.children.iterate((pipe) => {
             const sprite = pipe as Phaser.Physics.Arcade.Sprite;
             if (sprite && sprite.getBounds().right < 0) {
@@ -118,20 +116,20 @@ export class LevelI extends Scene {
     }
 
     update() {
-        
+
         this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);
-    
+
         this.pipeGroup.children.each((pipe) => {
             const sprite = pipe as Phaser.Physics.Arcade.Sprite;
-    
+
             if (
                 sprite &&
-                sprite.getBounds().right < 250 && 
+                sprite.getBounds().right < 250 &&
                 !sprite.getData('scored') &&
                 sprite.flipY
             ) {
                 sprite.setData('scored', true);
-                this.handleScoreCount(); 
+                this.handleScoreCount();
             }
             return null;
         });
@@ -140,8 +138,9 @@ export class LevelI extends Scene {
     handleScoreCount() {
         this.scoreNumber += 1;
         const high_score = ~~getHighScore()
-        if(this.scoreNumber > high_score ){
-            localStorage.setItem("highscore",""+this.scoreNumber)
+        if (this.scoreNumber > high_score) {
+
+            localStorage.setItem("highscore", "" + this.scoreNumber)
         }
 
         this.scoreText.setText(`SCORE: ${this.scoreNumber}`);

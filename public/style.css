@@ -7,3 +7,38 @@
 body {
     overflow: hidden;
 }
+
+@keyframes shake {
+    0% {
+        transform: translateX(0);
+        border: 2px solid white;
+
+    }
+
+    25% {
+        transform: translateX(-10px);
+        border: 2px solid red;
+    }
+
+    50% {
+        transform: translateX(10px);
+        border: 2px solid yellow;
+
+    }
+
+    75% {
+        transform: translateX(-10px);
+        border: 2px solid green;
+
+    }
+
+    100% {
+        transform: translateX(0);
+        border: 2px solid white;
+
+    }
+}
+
+.shake {
+    animation: shake 0.3s ease-in-out;
+}

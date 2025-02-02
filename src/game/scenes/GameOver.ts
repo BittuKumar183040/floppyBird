@@ -1,6 +1,6 @@
 import { Scene } from "phaser";
 import { BASE_HEIGHT, BASE_WIDTH, primary } from "../config/config";
-import { getHighScore, setHeight } from "../controller/methods";
+import { getHighScore, setHeight, submitScore } from "../controller/methods";
 
 interface ObjProp {
 	score: number | undefined;
@@ -20,7 +20,7 @@ export class GameOver extends Scene {
 		this.load.image('logo', 'logo.png');
 	}
 
-	create(obj: ObjProp) {
+	async create(obj: ObjProp) {
 		this.gradientGraphics = this.add.graphics();
 		this.drawGradientBackground();
 
@@ -35,7 +35,7 @@ export class GameOver extends Scene {
 			fontSize: '40px', strokeThickness: 5, color: '#ffffff',
 		}).setOrigin(1).setDepth(100);
 
-		this.add.text(BASE_WIDTH / 2, 70, `HIGH SCORE : ${getHighScore()}`, {
+		this.add.text(BASE_WIDTH / 2, 70, `YOUR HIGHEST : ${getHighScore()}`, {
 			fontFamily: 'Arial Black',
 			fontSize: '40px', color: '#ffffff',
 			stroke: "#000000", strokeThickness: 5,
@@ -83,6 +83,12 @@ export class GameOver extends Scene {
 			btn_no.setStyle({ color: "#ffffff", fontSize: '55px' });
 			this.input.manager.canvas.style.cursor = 'default';
 		});
+		let username = localStorage.getItem("username")
+		let highscore = parseInt(String(localStorage.getItem("highscore")))
+		if (username && highscore) {
+			await submitScore(username, highscore)
+		}
+
 	}
 
 	update() {
