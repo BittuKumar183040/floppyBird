@@ -46,8 +46,8 @@ export class LevelI extends Scene {
 
         this.fpsText = this.add.text(10, 10, 'FPS: 0', { font: '16px Arial' }).setDepth(500);
 
-        this.scoreText = this.add.text(width - 180, 30, `SCORE: ${this.scoreNumber}`, {
-            font: '26px Arial',
+        this.scoreText = this.add.text(width / 2 , 50, `${this.scoreNumber}`, {
+            font: '80px Arial',
         }).setDepth(200);
 
         const bird = this.physics.add.image(250, height / 2, 'character').setDepth(100);
@@ -143,6 +143,6 @@ export class LevelI extends Scene {
             localStorage.setItem("highscore", "" + this.scoreNumber)
         }
 
-        this.scoreText.setText(`SCORE: ${this.scoreNumber}`);
+        this.scoreText.setText(`${this.scoreNumber}`);
     }
 }
