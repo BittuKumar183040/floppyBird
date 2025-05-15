@@ -35,6 +35,14 @@ export class LevelI extends Scene {
         this.load.image('pipe', 'pipe.png');
     }
 
+    handleUpMovement(bird: Phaser.Types.Physics.Arcade.ImageWithDynamicBody) {
+        bird.setVelocityY(-400);
+        bird.setAngle(-25);
+        this.time.delayedCall(200, () => {
+            bird.setAngle(0);
+        });
+    }
+
     create() {
 
         this.physics.world.gravity.y = 800;
@@ -55,11 +63,11 @@ export class LevelI extends Scene {
         bird.setCollideWorldBounds(true);
 
         screen.on('pointerdown', () => {
-            bird.setVelocityY(-400);
+            this.handleUpMovement(bird)
         });
 
         this.input.keyboard?.on('keydown-SPACE', () => {
-            bird.setVelocityY(-400);
+            this.handleUpMovement(bird)
         });
 
         this.pipeGroup = this.physics.add.group({
@@ -75,6 +83,13 @@ export class LevelI extends Scene {
         });
 
         this.physics.add.collider(bird, this.pipeGroup, this.handleCollision, undefined, this);
+        
+        bird.body.onWorldBounds = true;
+        this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
+            if (body.gameObject === bird) {
+                this.handleCollision();
+            }
+        });
 
         EventBus.emit('current-scene-ready', this);
     }
