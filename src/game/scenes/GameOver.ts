@@ -1,18 +1,18 @@
 import { Scene } from "phaser";
 import { BASE_HEIGHT, BASE_WIDTH, primary } from "../config/config";
-import { getHighScore, setHeight } from "../controller/methods";
-import { refreshMusic, saveScore } from "../controller/preferences";
+import { setHeight } from "../controller/methods";
+import { type GameMode, getBestScore, refreshMusic, saveScore } from "../controller/preferences";
 
 interface ObjProp {
 	score: number | undefined;
 	previousBest?: number;
+	difficulty: GameMode;
 }
 
 export class GameOver extends Scene {
 	private gradientGraphics!: Phaser.GameObjects.Graphics;
 	private gradientOffset: number = 0;
 	private gradientElapsed = 0;
-	private previousBest = 0;
 
 	constructor() {
 		super('GameOver');
@@ -39,12 +39,11 @@ export class GameOver extends Scene {
 			fontSize: '40px', strokeThickness: 5, color: '#ffffff',
 		}).setOrigin(1).setDepth(100);
 
-		const best = Number(getHighScore());
-		const newRecord = (obj.score ?? 0) > (obj.previousBest ?? this.previousBest);
-		if (newRecord) localStorage.setItem('highscore', String(obj.score));
-		this.add.text(BASE_WIDTH / 2, 70, `${newRecord ? 'NEW PERSONAL BEST!' : 'PERSONAL BEST'} : ${Math.max(best, obj.score ?? 0)}`, {
+		const best = getBestScore(obj.difficulty);
+		const newRecord = (obj.score ?? 0) > (obj.previousBest ?? best);
+		this.add.text(BASE_WIDTH / 2, 70, `${obj.difficulty.toUpperCase()}  ${newRecord ? 'NEW BEST!' : 'BEST'} : ${Math.max(best, obj.score ?? 0)}`, {
 			fontFamily: 'Arial Black',
-			fontSize: '40px', color: '#ffffff',
+			fontSize: `${Math.min(40, BASE_WIDTH * 0.08)}px`, color: '#ffffff',
 			stroke: "#000000", strokeThickness: 5,
 		}).setOrigin(0.5).setDepth(100);
 
@@ -97,7 +96,7 @@ export class GameOver extends Scene {
 			this.input.manager.canvas.style.cursor = 'default';
 		});
 		const username = localStorage.getItem("username") || 'Guest';
-		saveScore(username, obj.score ?? 0);
+		saveScore(username, obj.score ?? 0, obj.difficulty);
 		refreshMusic();
 		this.input.keyboard?.on('keydown-SPACE', () => this.scene.start('LevelI'));
 		this.input.keyboard?.on('keydown-ENTER', () => this.scene.start('LevelI'));
@@ -105,7 +104,6 @@ export class GameOver extends Scene {
 	}
 
 	init() {
-		this.previousBest = Number(getHighScore());
 		this.gradientOffset = 0;
 		this.gradientElapsed = 0;
 	}

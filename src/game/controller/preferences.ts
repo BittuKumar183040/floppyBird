@@ -1,11 +1,21 @@
 export interface GamePreferences {
     music: boolean;
     effects: boolean;
-    difficulty: number;
+    difficulty: GameMode;
 }
 
+export type GameMode = 'chill' | 'classic' | 'spicy';
+
 const STORAGE_KEY = 'floppyBirdPreferences';
-const defaults: GamePreferences = { music: true, effects: true, difficulty: 1 };
+const defaults: GamePreferences = { music: true, effects: true, difficulty: 'classic' };
+
+const normalizeMode = (value: unknown): GameMode => {
+    if (value === 'chill' || value === 'classic' || value === 'spicy') return value;
+    const legacyValue = Number(value);
+    if (Number.isFinite(legacyValue) && legacyValue < 0.8) return 'chill';
+    if (Number.isFinite(legacyValue) && legacyValue > 1.2) return 'spicy';
+    return 'classic';
+};
 
 export const getPreferences = (): GamePreferences => {
     try {
@@ -13,7 +23,7 @@ export const getPreferences = (): GamePreferences => {
         return {
             music: typeof saved.music === 'boolean' ? saved.music : defaults.music,
             effects: typeof saved.effects === 'boolean' ? saved.effects : defaults.effects,
-            difficulty: Phaser.Math.Clamp(Number(saved.difficulty) || 1, 0.5, 1.5),
+            difficulty: normalizeMode(saved.difficulty),
         };
     } catch {
         return { ...defaults };
@@ -22,6 +32,8 @@ export const getPreferences = (): GamePreferences => {
 
 let context: AudioContext | undefined;
 let musicGain: GainNode | undefined;
+let musicTimer: number | undefined;
+let musicStep = 0;
 
 const ensureAudio = () => {
     if (context) return context;
@@ -29,26 +41,50 @@ const ensureAudio = () => {
     if (!AudioContextType) return undefined;
     context = new AudioContextType();
     musicGain = context.createGain();
-    musicGain.gain.value = 0;
+    musicGain.gain.value = 0.55;
     musicGain.connect(context.destination);
-    [196, 246.94, 293.66].forEach((frequency, index) => {
-        const oscillator = context!.createOscillator();
-        const voiceGain = context!.createGain();
-        oscillator.type = index === 0 ? 'triangle' : 'sine';
-        oscillator.frequency.value = frequency;
-        voiceGain.gain.value = index === 0 ? 0.38 : 0.2;
-        oscillator.connect(voiceGain).connect(musicGain!);
-        oscillator.start();
-    });
     return context;
+};
+
+const playMusicNote = (frequency: number, duration: number, type: OscillatorType, volume: number) => {
+    if (!context || !musicGain || context.state !== 'running') return;
+    const start = context.currentTime;
+    const oscillator = context.createOscillator();
+    const envelope = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    envelope.gain.setValueAtTime(0.001, start);
+    envelope.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+    envelope.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    oscillator.connect(envelope).connect(musicGain);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.02);
+};
+
+const startMusicLoop = () => {
+    if (musicTimer !== undefined) return;
+    const melody = [659, 784, 988, 784, 880, 784, 659, 587, 523, 587, 659, 784, 659, 587, 523, 587];
+    const bass = [131, 131, 196, 196, 165, 165, 196, 196, 110, 110, 165, 165, 131, 131, 196, 196];
+    musicTimer = window.setInterval(() => {
+        if (!context || context.state !== 'running' || !getPreferences().music) return;
+        const note = melody[musicStep % melody.length];
+        playMusicNote(note, 0.14, 'square', 0.16);
+        if (musicStep % 2 === 0) playMusicNote(bass[musicStep % bass.length], 0.24, 'triangle', 0.22);
+        musicStep += 1;
+    }, 155);
 };
 
 export const refreshMusic = () => {
     const audio = ensureAudio();
     if (!audio || !musicGain) return;
     const enabled = getPreferences().music;
-    if (enabled) void audio.resume();
-    musicGain.gain.setTargetAtTime(enabled ? 0.035 : 0, audio.currentTime, 0.25);
+    if (enabled) {
+        void audio.resume().then(startMusicLoop);
+    } else if (musicTimer !== undefined) {
+        window.clearInterval(musicTimer);
+        musicTimer = undefined;
+        musicStep = 0;
+    }
 };
 
 export const playEffect = (kind: 'flap' | 'score' | 'record' | 'dead') => {
@@ -70,8 +106,16 @@ export const playEffect = (kind: 'flap' | 'score' | 'record' | 'dead') => {
     oscillator.stop(now + (kind === 'record' ? 0.5 : 0.22));
 };
 
-export const openSettings = (parent: HTMLElement, onClose?: () => void) => {
+export const openSettings = (parent: HTMLElement, onClose?: () => void, options: { showDifficulty?: boolean } = {}) => {
     const settings = getPreferences();
+    const difficultyControl = options.showDifficulty === false ? '' : `
+        <label class="settings-difficulty"><span>Difficulty</span>
+          <select name="difficulty" aria-label="Difficulty">
+            <option value="chill" ${settings.difficulty === 'chill' ? 'selected' : ''}>Chill · 1 point per pipe</option>
+            <option value="classic" ${settings.difficulty === 'classic' ? 'selected' : ''}>Classic · 2 points per pipe</option>
+            <option value="spicy" ${settings.difficulty === 'spicy' ? 'selected' : ''}>Spicy · 3 points per pipe</option>
+          </select>
+        </label>`;
     const overlay = document.createElement('div');
     overlay.className = 'settings-overlay';
     overlay.innerHTML = `
@@ -80,10 +124,7 @@ export const openSettings = (parent: HTMLElement, onClose?: () => void) => {
         <h2 id="settings-title">Flight settings</h2>
         <label class="settings-option"><span>Background music</span><input name="music" type="checkbox" ${settings.music ? 'checked' : ''}></label>
         <label class="settings-option"><span>Sound effects</span><input name="effects" type="checkbox" ${settings.effects ? 'checked' : ''}></label>
-        <label class="settings-difficulty"><span>Difficulty <strong>${Math.round(settings.difficulty * 100)}%</strong></span>
-          <input name="difficulty" type="range" min="0.5" max="1.5" step="0.05" value="${settings.difficulty}">
-          <small>CHILL <span>CLASSIC</span> SPICY</small>
-        </label>
+        ${difficultyControl}
       </section>`;
     parent.appendChild(overlay);
     const close = () => {
@@ -95,6 +136,9 @@ export const openSettings = (parent: HTMLElement, onClose?: () => void) => {
     document.addEventListener('keydown', onKeyDown);
     overlay.querySelector('.settings-close')?.addEventListener('click', close);
     overlay.addEventListener('pointerdown', (event) => { if (event.target === overlay) close(); });
+    ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend'].forEach((eventName) => {
+        overlay.addEventListener(eventName, (event) => event.stopPropagation());
+    });
     overlay.querySelector<HTMLInputElement>('input[name="music"]')?.addEventListener('change', (event) => {
         const value = (event.currentTarget as HTMLInputElement).checked;
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...getPreferences(), music: value }));
@@ -104,33 +148,57 @@ export const openSettings = (parent: HTMLElement, onClose?: () => void) => {
         const value = (event.currentTarget as HTMLInputElement).checked;
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...getPreferences(), effects: value }));
     });
-    overlay.querySelector<HTMLInputElement>('input[name="difficulty"]')?.addEventListener('input', (event) => {
-        const value = Number((event.currentTarget as HTMLInputElement).value);
+    overlay.querySelector<HTMLSelectElement>('select[name="difficulty"]')?.addEventListener('change', (event) => {
+        const value = normalizeMode((event.currentTarget as HTMLSelectElement).value);
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...getPreferences(), difficulty: value }));
-        const output = overlay.querySelector('strong');
-        if (output) output.textContent = `${Math.round(value * 100)}%`;
     });
     overlay.querySelector<HTMLButtonElement>('.settings-close')?.focus();
     refreshMusic();
     return overlay;
 };
 
-export interface ScoreRecord { username: string; score: number; date: string; }
+export interface ScoreRecord { username: string; score: number; date: string; mode: GameMode; }
 const SCORE_KEY = 'floppyBirdScores';
+const BEST_KEY = 'floppyBirdBestScores';
+
+const currentPlayerKey = () => (localStorage.getItem('username')?.trim() || 'Guest').toLowerCase();
 
 export const getScoreHistory = (): ScoreRecord[] => {
     try {
         const parsed = JSON.parse(localStorage.getItem(SCORE_KEY) || '[]');
         return Array.isArray(parsed) ? parsed.flatMap((record): ScoreRecord[] => {
             if (!record || typeof record.username !== 'string' || !Number.isFinite(Number(record.score)) || typeof record.date !== 'string') return [];
-            return [{ username: record.username, score: Number(record.score), date: record.date }];
+            return [{ username: record.username, score: Number(record.score), date: record.date, mode: normalizeMode(record.mode) }];
         }) : [];
     } catch { return []; }
 };
 
-export const saveScore = (username: string, score: number) => {
+export const getBestScore = (mode: GameMode) => {
+    try {
+        const profiles = JSON.parse(localStorage.getItem(BEST_KEY) || '{}') as Record<string, Partial<Record<GameMode, number>>>;
+        const score = Number(profiles[currentPlayerKey()]?.[mode]);
+        if (Number.isFinite(score)) return score;
+    } catch { /* Treat malformed local data as an empty score table. */ }
+    return mode === 'classic' ? Number(localStorage.getItem('highscore')) || 0 : 0;
+};
+
+export const getBestScores = (): Record<GameMode, number> => ({
+    chill: getBestScore('chill'), classic: getBestScore('classic'), spicy: getBestScore('spicy'),
+});
+
+export const saveBestScore = (mode: GameMode, score: number) => {
+    if (score <= getBestScore(mode)) return;
+    let profiles: Record<string, Partial<Record<GameMode, number>>> = {};
+    try { profiles = JSON.parse(localStorage.getItem(BEST_KEY) || '{}'); } catch { /* Replace malformed data. */ }
+    const playerKey = currentPlayerKey();
+    profiles[playerKey] = { ...profiles[playerKey], [mode]: score };
+    localStorage.setItem(BEST_KEY, JSON.stringify(profiles));
+    if (mode === 'classic') localStorage.setItem('highscore', String(score));
+};
+
+export const saveScore = (username: string, score: number, mode: GameMode) => {
     if (!username.trim() || score < 0) return;
     const records = getScoreHistory();
-    records.unshift({ username: username.trim(), score, date: new Date().toISOString() });
+    records.unshift({ username: username.trim(), score, date: new Date().toISOString(), mode });
     localStorage.setItem(SCORE_KEY, JSON.stringify(records.slice(0, 100)));
 };

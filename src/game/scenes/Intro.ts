@@ -147,7 +147,10 @@ export class Intro extends Scene {
         }).setOrigin(0.5).setDepth(150).setInteractive({ useHandCursor: true });
         settingsButton.on('pointerdown', () => {
             const parent = this.game.canvas.parentElement;
-            if (parent) openSettings(parent);
+            if (parent) {
+                this.input.enabled = false;
+                openSettings(parent, () => { this.input.enabled = true; });
+            }
         });
         settingsButton.on('pointerover', () => {
             this.tweens.add({ targets: settingsButton, scale: 1.08, duration: 140, yoyo: true });

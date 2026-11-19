@@ -91,9 +91,8 @@ body {
 
 .settings-option { padding: 13px 0; border-bottom: 1px solid #d6e5d3; }
 .settings-option input { width: 22px; height: 22px; accent-color: #4e9a54; cursor: pointer; }
-.settings-difficulty { display: block; padding-top: 22px; }
-.settings-difficulty input { width: 100%; margin: 22px 0 8px; accent-color: #4e9a54; cursor: pointer; }
-.settings-difficulty small { display: flex; justify-content: space-between; color: #58746b; font-size: 11px; font-weight: 800; }
+.settings-difficulty { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; font-size: 17px; font-weight: 700; }
+.settings-difficulty select { max-width: 260px; padding: 11px 14px; border: 1px solid #b7d0b4; border-radius: 10px; background: #fff; color: #17342d; font: inherit; cursor: pointer; }
 
 @keyframes settings-enter {
     from { opacity: 0; transform: translateY(14px) scale(.96); }

@@ -1,8 +1,8 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config/config';
-import { getHighScore, setHeight } from '../controller/methods';
-import { getPreferences, openSettings, playEffect, refreshMusic } from '../controller/preferences';
+import { setHeight } from '../controller/methods';
+import { type GameMode, getBestScore, getPreferences, openSettings, playEffect, refreshMusic, saveBestScore } from '../controller/preferences';
 
 
 const width = BASE_WIDTH;
@@ -23,6 +23,8 @@ export class LevelI extends Scene {
     private countdown = 3;
     private gameStarted = false;
     private bestAtStart = 0;
+    private activeDifficulty: GameMode = 'classic';
+    private pipesPassed = 0;
     private recordBanner?: Phaser.GameObjects.Text;
 
     constructor() {
@@ -31,11 +33,13 @@ export class LevelI extends Scene {
 
     init() {
         this.scoreNumber = 0;
+        this.pipesPassed = 0;
         this.paused = false;
         this.gameEnded = false;
         this.countdown = 3;
         this.gameStarted = false;
-        this.bestAtStart = Number(getHighScore());
+        this.activeDifficulty = getPreferences().difficulty;
+        this.bestAtStart = getBestScore(this.activeDifficulty);
         this.recordBanner = undefined;
     }
 
@@ -67,6 +71,10 @@ export class LevelI extends Scene {
         this.scoreText = this.add.text(width / 2 , 50, `${this.scoreNumber}`, {
             font: 'bold 88px Arial', color: '#ffffff', stroke: '#17342d', strokeThickness: 7,
         }).setOrigin(0.5, 0).setDepth(200);
+        this.add.text(width / 2, 145, `${this.activeDifficulty.toUpperCase()} MODE  ·  ${this.pointsPerPipe()} PT${this.pointsPerPipe() === 1 ? '' : 'S'} / PIPE`, {
+            fontFamily: 'Arial Black', fontSize: '20px', color: '#e4ffc7',
+            stroke: '#17342d', strokeThickness: 5,
+        }).setOrigin(0.5).setDepth(200);
 
         this.pauseLabel = this.add.text(width - 24, 24, 'Ⅱ  PAUSE', {
             fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff',
@@ -117,18 +125,23 @@ export class LevelI extends Scene {
             event.stopPropagation();
             const parent = this.game.canvas.parentElement;
             if (!parent || this.gameEnded) return;
+            const resumeAfterSettings = !this.paused;
+            this.input.enabled = false;
             this.paused = true;
             this.physics.world.pause();
             this.time.paused = true;
             this.pauseLabel.setText('▶  RESUME');
             openSettings(parent, () => {
                 if (!this.gameEnded && this.scene.isActive()) {
-                    this.paused = false;
-                    this.physics.world.resume();
-                    this.time.paused = false;
-                    this.pauseLabel.setText('Ⅱ  PAUSE');
+                    this.input.enabled = true;
+                    if (resumeAfterSettings) {
+                        this.paused = false;
+                        this.physics.world.resume();
+                        this.time.paused = false;
+                        this.pauseLabel.setText('Ⅱ  PAUSE');
+                    }
                 }
-            });
+            }, { showDifficulty: false });
         });
 
         this.pipeGroup = this.physics.add.group({
@@ -172,7 +185,7 @@ export class LevelI extends Scene {
         this.gameEnded = true;
         playEffect('dead');
         this.scene.pause()
-        this.scene.start('GameOver', { score: this.scoreNumber, previousBest: this.bestAtStart })
+        this.scene.start('GameOver', { score: this.scoreNumber, previousBest: this.bestAtStart, difficulty: this.activeDifficulty })
     }
 
     removePipe(pipe: Phaser.Physics.Arcade.Sprite) {
@@ -181,9 +194,9 @@ export class LevelI extends Scene {
 
     PipesSpawn() {
         if (!this.gameStarted || this.gameEnded) return;
-        const difficulty = getPreferences().difficulty;
-        const speed = (400 + Math.min(this.scoreNumber * 5, 160)) * difficulty;
-        const pipeGap = Phaser.Math.Clamp(300 / difficulty - this.scoreNumber * 2, 180, 430);
+        const mode = this.modeTuning();
+        const speed = mode.speed + Math.min(this.pipesPassed * 5, 160);
+        const pipeGap = Math.max(mode.gap - Math.min(this.pipesPassed * 2, 70), 175);
         const spawnX = this.scale.width + PIPE_WIDTH;
         const pipeY = Phaser.Math.Between(-200, 250);
 
@@ -238,9 +251,10 @@ export class LevelI extends Scene {
     }
 
     handleScoreCount() {
-        this.scoreNumber += 1;
+        this.pipesPassed += 1;
+        this.scoreNumber += this.pointsPerPipe();
         if (this.scoreNumber > this.bestAtStart) {
-            localStorage.setItem("highscore", "" + this.scoreNumber)
+            saveBestScore(this.activeDifficulty, this.scoreNumber);
             if (!this.recordBanner) this.showNewRecord();
         } else {
             playEffect('score');
@@ -252,12 +266,22 @@ export class LevelI extends Scene {
 
     private showNewRecord() {
         playEffect('record');
-        this.recordBanner = this.add.text(width / 2, height / 2 - 230, '✦  NEW PERSONAL BEST!  ✦', {
-            fontFamily: 'Arial Black', fontSize: '36px', color: '#fff4a8',
+        this.recordBanner = this.add.text(width / 2, height / 2 - 230, `✦  NEW ${this.activeDifficulty.toUpperCase()} BEST!  ✦`, {
+            fontFamily: 'Arial Black', fontSize: `${Math.min(36, width * 0.075)}px`, color: '#fff4a8',
             stroke: '#7e4315', strokeThickness: 8,
             shadow: { color: '#ffdc55', blur: 22, fill: true, stroke: true }
         }).setOrigin(0.5).setDepth(700).setScale(0.4).setAlpha(0);
         this.tweens.add({ targets: this.recordBanner, scale: 1, alpha: 1, y: height / 2 - 260, duration: 420, ease: 'Back.Out' });
         this.tweens.add({ targets: this.recordBanner, angle: { from: -3, to: 3 }, duration: 180, yoyo: true, repeat: 5, delay: 420 });
+    }
+
+    private pointsPerPipe() {
+        return this.activeDifficulty === 'spicy' ? 3 : this.activeDifficulty === 'classic' ? 2 : 1;
+    }
+
+    private modeTuning() {
+        if (this.activeDifficulty === 'chill') return { speed: 340, gap: 380 };
+        if (this.activeDifficulty === 'spicy') return { speed: 480, gap: 245 };
+        return { speed: 400, gap: 300 };
     }
 }
