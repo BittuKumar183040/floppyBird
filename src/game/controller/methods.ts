@@ -6,8 +6,8 @@ export const setHeight = (asset: Phaser.GameObjects.Image, height: number) => {
 };
 
 export const getHighScore = () => {
-	const score = localStorage.getItem('highscore');
-	return score ?? 0;
+	const score = Number(localStorage.getItem('highscore'));
+	return Number.isFinite(score) ? score : 0;
 }
 
 

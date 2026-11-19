@@ -11,6 +11,7 @@ const config: Types.Core.GameConfig = {
     height: BASE_HEIGHT,
     parent: 'game-container',
     backgroundColor: '#fff',
+    fps: { target: 60, forceSetTimeOut: true },
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.NO_CENTER
@@ -24,7 +25,9 @@ const config: Types.Core.GameConfig = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: false
+            debug: false,
+            fps: 60,
+            fixedStep: true
         }
     }
 };

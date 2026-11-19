@@ -9,7 +9,9 @@ export class LevelII extends Scene {
 
   async fetchScoreboard() {
     try {
+      if (!backendurl) throw new Error('Scoreboard service is not configured');
       const response = await fetch(`${backendurl}/scoreboard/flappybird`);
+      if (!response.ok) throw new Error(`Scoreboard request failed (${response.status})`);
       const data = await response.json();
       return data;
     } catch (error) {
@@ -79,6 +81,11 @@ export class LevelII extends Scene {
 
       if (!Array.isArray(scoreboardData)) {
         console.error("Invalid scoreboard data format:", scoreboardData);
+        return;
+      }
+
+      if (scoreboardData.length === 0) {
+        createText({ text: 'No scores yet — be the first!', fontSize: 28, onPointDown: () => {}, pos: { x: BASE_WIDTH / 2, y: 430 } });
         return;
       }
 

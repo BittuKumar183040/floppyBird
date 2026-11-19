@@ -6,7 +6,6 @@ import { getHighScore, setHeight } from '../controller/methods';
 
 const width = BASE_WIDTH;
 const height = BASE_HEIGHT;
-const PIPE_GAP = 300;
 const PIPE_WIDTH = 100;
 
 export class LevelI extends Scene {
@@ -17,6 +16,10 @@ export class LevelI extends Scene {
     pipeGroup!: Phaser.Physics.Arcade.Group;
     pipeTimer!: Phaser.Time.TimerEvent;
     private currentPipePos = width;
+    private paused = false;
+    private gameEnded = false;
+    private pauseLabel!: Phaser.GameObjects.Text;
+    private readyLabel!: Phaser.GameObjects.Text;
 
     constructor() {
         super('LevelI');
@@ -25,6 +28,8 @@ export class LevelI extends Scene {
     init() {
         this.scoreNumber = 0;
         this.currentPipePos = width;
+        this.paused = false;
+        this.gameEnded = false;
     }
 
     preload() {
@@ -52,23 +57,38 @@ export class LevelI extends Scene {
         const logo = this.add.image(120, 50, 'logo').setDepth(200);
         setHeight(logo, 200);
 
-        this.fpsText = this.add.text(10, 10, 'FPS: 0', { font: '16px Arial' }).setDepth(500);
+        this.fpsText = this.add.text(20, 20, 'FPS: 0', { font: '18px Arial', color: '#ffffff', stroke: '#17342d', strokeThickness: 4 }).setDepth(500);
 
         this.scoreText = this.add.text(width / 2 , 50, `${this.scoreNumber}`, {
-            font: '80px Arial',
-        }).setDepth(200);
+            font: 'bold 88px Arial', color: '#ffffff', stroke: '#17342d', strokeThickness: 7,
+        }).setOrigin(0.5, 0).setDepth(200);
+
+        this.pauseLabel = this.add.text(width - 24, 24, 'Ⅱ  PAUSE', {
+            fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff',
+            backgroundColor: '#17342d', padding: { x: 14, y: 10 }
+        }).setOrigin(1, 0).setDepth(500).setInteractive({ useHandCursor: true });
+        this.pauseLabel.on('pointerdown', () => this.togglePause());
+        this.add.text(width / 2, height - 38, 'TAP OR PRESS SPACE TO FLAP  •  P TO PAUSE', {
+            fontSize: '20px', color: '#ffffff', stroke: '#17342d', strokeThickness: 5
+        }).setOrigin(0.5).setDepth(500);
+        this.readyLabel = this.add.text(width / 2, height / 2 - 120, 'GET READY', {
+            fontFamily: 'Arial Black', fontSize: '38px', color: '#ffffff',
+            stroke: '#17342d', strokeThickness: 7
+        }).setOrigin(0.5).setDepth(500);
+        this.time.delayedCall(900, () => { if (this.readyLabel.active) this.readyLabel.setText('FLAP!'); });
+        this.time.delayedCall(1600, () => this.readyLabel?.destroy());
 
         const bird = this.physics.add.image(250, height / 2, 'character').setDepth(100);
         setHeight(bird, 60);
         bird.setCollideWorldBounds(true);
 
-        screen.on('pointerdown', () => {
-            this.handleUpMovement(bird)
-        });
+        screen.on('pointerdown', () => { if (!this.paused && !this.gameEnded) this.handleUpMovement(bird); });
 
         this.input.keyboard?.on('keydown-SPACE', () => {
-            this.handleUpMovement(bird)
+            if (!this.paused && !this.gameEnded) this.handleUpMovement(bird)
         });
+        this.input.keyboard?.on('keydown-P', () => this.togglePause());
+        this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
 
         this.pipeGroup = this.physics.add.group({
             allowGravity: false,
@@ -83,7 +103,7 @@ export class LevelI extends Scene {
         });
 
         this.physics.add.collider(bird, this.pipeGroup, this.handleCollision, undefined, this);
-        
+
         bird.body.onWorldBounds = true;
         this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
             if (body.gameObject === bird) {
@@ -94,7 +114,29 @@ export class LevelI extends Scene {
         EventBus.emit('current-scene-ready', this);
     }
 
+    private togglePause() {
+        if (this.gameEnded) return;
+        this.paused = !this.paused;
+        if (this.paused) {
+            this.physics.world.pause();
+            this.time.paused = true;
+            this.pauseLabel.setText('▶  RESUME');
+            this.add.text(width / 2, height / 2, 'PAUSED', {
+                fontFamily: 'Arial Black', fontSize: '64px', color: '#ffffff',
+                stroke: '#17342d', strokeThickness: 8, backgroundColor: '#00000088',
+                padding: { x: 30, y: 18 }
+            }).setOrigin(0.5).setDepth(900).setName('pause-overlay');
+        } else {
+            this.physics.world.resume();
+            this.time.paused = false;
+            this.pauseLabel.setText('Ⅱ  PAUSE');
+            this.children.getByName('pause-overlay')?.destroy();
+        }
+    }
+
     handleCollision() {
+        if (this.gameEnded) return;
+        this.gameEnded = true;
         this.scene.pause()
         this.scene.start('GameOver', { score: this.scoreNumber })
     }
@@ -117,7 +159,10 @@ export class LevelI extends Scene {
         pipeBottom.setImmovable(true);
         pipeBottom.setVelocityX(this.pipeVelocity);
 
-        this.currentPipePos = this.currentPipePos + PIPE_GAP;
+        this.currentPipePos = this.currentPipePos + Phaser.Math.Clamp(300 - this.scoreNumber * 3, 220, 300);
+        const speed = -(400 + Math.min(this.scoreNumber * 5, 160));
+        pipeTop.setVelocityX(speed);
+        pipeBottom.setVelocityX(speed);
 
         pipeTop.setData('scored', false);
 
@@ -159,5 +204,6 @@ export class LevelI extends Scene {
         }
 
         this.scoreText.setText(`${this.scoreNumber}`);
+        this.tweens.add({ targets: this.scoreText, scale: 1.18, duration: 90, yoyo: true, ease: 'Quad.out' });
     }
 }

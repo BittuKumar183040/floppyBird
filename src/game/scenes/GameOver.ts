@@ -9,6 +9,8 @@ interface ObjProp {
 export class GameOver extends Scene {
 	private gradientGraphics!: Phaser.GameObjects.Graphics;
 	private gradientOffset: number = 0;
+	private gradientElapsed = 0;
+	private previousBest = 0;
 
 	constructor() {
 		super('GameOver');
@@ -28,17 +30,25 @@ export class GameOver extends Scene {
 		setHeight(logo, 200);
 
 		const gameOver = this.add.image(BASE_WIDTH / 2, BASE_HEIGHT / 3, 'gameover').setDepth(100);
-		setHeight(gameOver, 900);
+		setHeight(gameOver, Math.min(900, BASE_WIDTH * 0.75));
 
 		this.add.text(BASE_WIDTH - 40, 100, `SCORE : ${obj.score ? obj.score : 0}`, {
 			fontFamily: 'Arial Black', stroke: "#000000",
 			fontSize: '40px', strokeThickness: 5, color: '#ffffff',
 		}).setOrigin(1).setDepth(100);
 
-		this.add.text(BASE_WIDTH / 2, 70, `YOUR HIGHEST : ${getHighScore()}`, {
+		const best = Number(getHighScore());
+		const newRecord = (obj.score ?? 0) > this.previousBest;
+		if (newRecord) localStorage.setItem('highscore', String(obj.score));
+		this.add.text(BASE_WIDTH / 2, 70, `${newRecord ? 'NEW PERSONAL BEST!' : 'PERSONAL BEST'} : ${Math.max(best, obj.score ?? 0)}`, {
 			fontFamily: 'Arial Black',
 			fontSize: '40px', color: '#ffffff',
 			stroke: "#000000", strokeThickness: 5,
+		}).setOrigin(0.5).setDepth(100);
+
+		this.add.text(BASE_WIDTH / 2, BASE_HEIGHT / 2 + 100, this.medalFor(obj.score ?? 0), {
+			fontFamily: 'Arial Black', fontSize: '34px', color: '#ffffff',
+			stroke: '#17342d', strokeThickness: 6
 		}).setOrigin(0.5).setDepth(100);
 
 		this.add.text(BASE_WIDTH / 2, BASE_HEIGHT - 350, 'PLAY AGAIN?', {
@@ -84,18 +94,36 @@ export class GameOver extends Scene {
 			this.input.manager.canvas.style.cursor = 'default';
 		});
 		let username = localStorage.getItem("username")
-		let highscore = parseInt(String(localStorage.getItem("highscore")))
-		if (username && highscore) {
-			await submitScore(username, highscore)
+		if (username && (obj.score ?? 0) > 0) {
+			await submitScore(username, obj.score ?? 0)
 		}
+		this.input.keyboard?.on('keydown-SPACE', () => this.scene.start('LevelI'));
+		this.input.keyboard?.on('keydown-ENTER', () => this.scene.start('LevelI'));
 
 	}
 
-	update() {
-		this.gradientOffset += 1;
+	init() {
+		this.previousBest = Number(getHighScore());
+		this.gradientOffset = 0;
+		this.gradientElapsed = 0;
+	}
+
+	update(_time: number, delta: number) {
+		this.gradientElapsed += delta;
+		if (this.gradientElapsed < 50) return;
+		this.gradientElapsed = 0;
+		this.gradientOffset += 2;
 		if (this.gradientOffset > BASE_HEIGHT) {
 			this.gradientOffset = 0;
 		} this.drawGradientBackground();
+	}
+
+	private medalFor(score: number) {
+		if (score >= 30) return '🏆 LEGENDARY FLIGHT';
+		if (score >= 15) return '🥇 SKY MASTER';
+		if (score >= 8) return '🥈 GREAT FLIGHT';
+		if (score >= 3) return '🥉 NICE TRY';
+		return '🪽 KEEP FLAPPING';
 	}
 
 	drawGradientBackground() {

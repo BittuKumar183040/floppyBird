@@ -23,7 +23,7 @@ export class Intro extends Scene {
         const screen = this.add.image(0, 0, 'background').setOrigin(0, 0);
         screen.displayHeight = BASE_HEIGHT;
         screen.displayWidth = BASE_WIDTH;
-        const flappybird = this.add.image(BASE_WIDTH / 2, 350, 'logo').setDepth(100);
+        const flappybird = this.add.image(BASE_WIDTH / 2, 250, 'logo').setDepth(100);
         setHeight(flappybird, 700)
 
         const createText = ({ text, fontSize, pos, onPointDown }: any) => {
@@ -49,22 +49,31 @@ export class Intro extends Scene {
             return button
         }
 
-        createText({
-            text: "START", fontSize: 44, onPointDown: () => {
-                this.scene.start('LevelI');
-            },
-            pos: {
-                x: BASE_WIDTH / 2,
-                y: BASE_HEIGHT - 100 - 100 * 3
-            }
-        })
-
         this.inputUsername = document.createElement('input');
         this.inputUsername.type = 'text';
         this.inputUsername.value = localStorage.getItem('username') || ""
         this.inputUsername.placeholder = 'Enter your username';
-        this.styleInput(this.inputUsername, 20, "20px");
-        document.body.appendChild(this.inputUsername);
+        this.inputUsername.maxLength = 18;
+        this.inputUsername.autocomplete = 'nickname';
+        this.styleInput(this.inputUsername);
+        this.game.canvas.parentElement?.appendChild(this.inputUsername);
+        this.scale.on('resize', this.positionInput, this);
+        this.positionInput();
+        this.inputUsername.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') startGame();
+        });
+
+        const startGame = () => {
+            const value = this.inputUsername.value.trim();
+            if (!value) {
+                this.shakeInputField(this.inputUsername);
+                this.inputUsername.focus();
+                return;
+            }
+            localStorage.setItem('username', value);
+            this.inputUsername.remove();
+            this.scene.start('LevelI');
+        };
 
         const fullscreen = this.add.image(BASE_WIDTH - 60, BASE_HEIGHT - 60, 'fullScreen')
             .setDepth(100)
@@ -100,16 +109,7 @@ export class Intro extends Scene {
             .setDepth(100)
             .setInteractive()
             .on('pointerdown', () => {
-                let value = this.inputUsername.value.trim();
-                if (value && value.length > 0) {
-                    localStorage.setItem('username', value)
-                    this.inputUsername.remove();
-                    this.scene.start('LevelI');
-                    return null;
-                } else {
-                    this.shakeInputField(this.inputUsername);
-                    return null;
-                }
+                startGame();
             });
 
         startBtn.on('pointerover', () => {
@@ -156,19 +156,32 @@ export class Intro extends Scene {
 
         EventBus.emit('current-scene-ready', this);
 
+        this.events.once('shutdown', () => {
+            this.scale.off('resize', this.positionInput, this);
+            this.inputUsername.remove();
+            this.input.manager.canvas.style.cursor = 'default';
+        });
+
     }
 
-    styleInput(input: HTMLInputElement, x: number, y: string) {
+    styleInput(input: HTMLInputElement) {
         Object.assign(input.style, {
-            position: 'absolute', width: '180px',
-            left: `${x}px`, top: `${y}`,
-            fontSize: '14px',
-            border: "2px solid transparent",
-
-            padding: '8px', letterSpacing: '1px',
-            outline: 'none', borderRadius: '5px',
-            boxShadow: 'inset 2px 2px 5px rgba(0, 0, 0, 0.2), 2px 2px 5px rgba(0, 0, 0, 0.2)'
+            position: 'absolute', width: 'min(320px, 70vw)', height: '52px',
+            transform: 'translate(-50%, -50%)', zIndex: '20',
+            fontSize: '18px', textAlign: 'center', color: '#17342d',
+            border: '3px solid #b4ff7d', padding: '10px 16px',
+            letterSpacing: '1px', outline: 'none', borderRadius: '14px',
+            background: 'rgba(255,255,255,.96)',
+            boxShadow: '0 8px 24px rgba(0,0,0,.25)'
         });
+    }
+
+    private positionInput() {
+        if (!this.inputUsername?.isConnected) return;
+        const canvas = this.game.canvas.getBoundingClientRect();
+        const x = canvas.left + canvas.width * 0.5;
+        const y = canvas.top + canvas.height * (410 / BASE_HEIGHT);
+        Object.assign(this.inputUsername.style, { left: `${x}px`, top: `${y}px` });
     }
 
     shakeInputField(input: HTMLInputElement) {
