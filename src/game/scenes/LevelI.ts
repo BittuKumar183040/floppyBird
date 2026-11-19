@@ -59,6 +59,7 @@ export class LevelI extends Scene {
 
     create() {
 
+        refreshMusic();
         this.physics.world.gravity.y = 0;
         const screen = this.add.image(0, 0, 'background').setInteractive().setOrigin(0, 0);
         screen.displayHeight = height;
@@ -71,10 +72,10 @@ export class LevelI extends Scene {
         this.scoreText = this.add.text(width / 2 , 50, `${this.scoreNumber}`, {
             font: 'bold 88px Arial', color: '#ffffff', stroke: '#17342d', strokeThickness: 7,
         }).setOrigin(0.5, 0).setDepth(200);
-        this.add.text(width / 2, 145, `${this.activeDifficulty.toUpperCase()} MODE  ·  ${this.pointsPerPipe()} PT${this.pointsPerPipe() === 1 ? '' : 'S'} / PIPE`, {
-            fontFamily: 'Arial Black', fontSize: '20px', color: '#e4ffc7',
+        this.add.text(24, height - 28, `${this.activeDifficulty.toUpperCase()} MODE · ${this.pointsPerPipe()} PT/PIPE`, {
+            fontFamily: 'Arial Black', fontSize: '18px', color: '#e4ffc7',
             stroke: '#17342d', strokeThickness: 5,
-        }).setOrigin(0.5).setDepth(200);
+        }).setOrigin(0, 1).setDepth(500);
 
         this.pauseLabel = this.add.text(width - 24, 24, 'Ⅱ  PAUSE', {
             fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff',
@@ -84,7 +85,7 @@ export class LevelI extends Scene {
             event.stopPropagation();
             this.togglePause();
         });
-        this.add.text(width / 2, height - 38, 'TAP OR PRESS SPACE TO FLAP  •  P TO PAUSE', {
+        this.add.text(width / 2, height - 76, 'TAP OR PRESS SPACE TO FLAP  •  P TO PAUSE', {
             fontSize: '20px', color: '#ffffff', stroke: '#17342d', strokeThickness: 5
         }).setOrigin(0.5).setDepth(500);
         this.readyLabel = this.add.text(width / 2, height / 2 - 120, '3', {
@@ -273,6 +274,16 @@ export class LevelI extends Scene {
         }).setOrigin(0.5).setDepth(700).setScale(0.4).setAlpha(0);
         this.tweens.add({ targets: this.recordBanner, scale: 1, alpha: 1, y: height / 2 - 260, duration: 420, ease: 'Back.Out' });
         this.tweens.add({ targets: this.recordBanner, angle: { from: -3, to: 3 }, duration: 180, yoyo: true, repeat: 5, delay: 420 });
+        this.time.delayedCall(3000, () => {
+            if (!this.recordBanner?.active) return;
+            this.tweens.add({
+                targets: this.recordBanner,
+                alpha: 0,
+                y: height / 2 - 290,
+                duration: 450,
+                onComplete: () => this.recordBanner?.destroy(),
+            });
+        });
     }
 
     private pointsPerPipe() {

@@ -22,6 +22,9 @@ export class Intro extends Scene {
     }
 
     create() {
+        refreshMusic();
+        this.input.once('pointerdown', () => refreshMusic());
+        this.input.keyboard?.once('keydown', () => refreshMusic());
         const screen = this.add.image(0, 0, 'background').setOrigin(0, 0);
         screen.displayHeight = BASE_HEIGHT;
         screen.displayWidth = BASE_WIDTH;

@@ -75,16 +75,19 @@ const startMusicLoop = () => {
 };
 
 export const refreshMusic = () => {
+    if (!getPreferences().music) {
+        if (musicTimer !== undefined) {
+            window.clearInterval(musicTimer);
+            musicTimer = undefined;
+            musicStep = 0;
+        }
+        return;
+    }
     const audio = ensureAudio();
     if (!audio || !musicGain) return;
-    const enabled = getPreferences().music;
-    if (enabled) {
-        void audio.resume().then(startMusicLoop);
-    } else if (musicTimer !== undefined) {
-        window.clearInterval(musicTimer);
-        musicTimer = undefined;
-        musicStep = 0;
-    }
+    void audio.resume().then(() => {
+        if (getPreferences().music) startMusicLoop();
+    }).catch(() => undefined);
 };
 
 export const playEffect = (kind: 'flap' | 'score' | 'record' | 'dead') => {
@@ -109,13 +112,11 @@ export const playEffect = (kind: 'flap' | 'score' | 'record' | 'dead') => {
 export const openSettings = (parent: HTMLElement, onClose?: () => void, options: { showDifficulty?: boolean } = {}) => {
     const settings = getPreferences();
     const difficultyControl = options.showDifficulty === false ? '' : `
-        <label class="settings-difficulty"><span>Difficulty</span>
-          <select name="difficulty" aria-label="Difficulty">
-            <option value="chill" ${settings.difficulty === 'chill' ? 'selected' : ''}>Chill · 1 point per pipe</option>
-            <option value="classic" ${settings.difficulty === 'classic' ? 'selected' : ''}>Classic · 2 points per pipe</option>
-            <option value="spicy" ${settings.difficulty === 'spicy' ? 'selected' : ''}>Spicy · 3 points per pipe</option>
-          </select>
-        </label>`;
+        <div class="settings-difficulty">
+          <div class="difficulty-heading"><span>Difficulty</span><strong>${settings.difficulty.toUpperCase()} · ${settings.difficulty === 'chill' ? 1 : settings.difficulty === 'classic' ? 2 : 3} PT/PIPE</strong></div>
+          <input name="difficulty" type="range" min="0" max="2" step="1" value="${settings.difficulty === 'chill' ? 0 : settings.difficulty === 'classic' ? 1 : 2}" aria-label="Difficulty: Chill, Classic, or Spicy">
+          <div class="difficulty-labels"><span class="${settings.difficulty === 'chill' ? 'selected' : ''}">CHILL</span><span class="${settings.difficulty === 'classic' ? 'selected' : ''}">CLASSIC</span><span class="${settings.difficulty === 'spicy' ? 'selected' : ''}">SPICY</span></div>
+        </div>`;
     const overlay = document.createElement('div');
     overlay.className = 'settings-overlay';
     overlay.innerHTML = `
@@ -148,9 +149,15 @@ export const openSettings = (parent: HTMLElement, onClose?: () => void, options:
         const value = (event.currentTarget as HTMLInputElement).checked;
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...getPreferences(), effects: value }));
     });
-    overlay.querySelector<HTMLSelectElement>('select[name="difficulty"]')?.addEventListener('change', (event) => {
-        const value = normalizeMode((event.currentTarget as HTMLSelectElement).value);
+    overlay.querySelector<HTMLInputElement>('input[name="difficulty"]')?.addEventListener('input', (event) => {
+        const position = Number((event.currentTarget as HTMLInputElement).value);
+        const value: GameMode = position === 0 ? 'chill' : position === 2 ? 'spicy' : 'classic';
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...getPreferences(), difficulty: value }));
+        const heading = overlay.querySelector('.difficulty-heading strong');
+        if (heading) heading.textContent = `${value.toUpperCase()} · ${value === 'chill' ? 1 : value === 'classic' ? 2 : 3} PT/PIPE`;
+        overlay.querySelectorAll('.difficulty-labels span').forEach((label, index) => {
+            label.classList.toggle('selected', index === position);
+        });
     });
     overlay.querySelector<HTMLButtonElement>('.settings-close')?.focus();
     refreshMusic();
