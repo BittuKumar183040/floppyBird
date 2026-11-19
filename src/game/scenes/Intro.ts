@@ -1,7 +1,8 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
-import { BASE_HEIGHT, BASE_WIDTH, primary } from '../config/config';
+import { BASE_HEIGHT, BASE_WIDTH } from '../config/config';
 import { setHeight } from '../controller/methods';
+import { openSettings, refreshMusic } from '../controller/preferences';
 
 export class Intro extends Scene {
     private inputUsername!: HTMLInputElement;
@@ -16,6 +17,7 @@ export class Intro extends Scene {
         this.load.image('logo', 'logo.png');
         this.load.image('start', 'start.png');
         this.load.image('dashboard', 'dashboard.png');
+        this.load.image('character', 'character.png');
         this.load.svg('fullScreen', 'fullscreen.svg')
     }
 
@@ -24,30 +26,12 @@ export class Intro extends Scene {
         screen.displayHeight = BASE_HEIGHT;
         screen.displayWidth = BASE_WIDTH;
         const flappybird = this.add.image(BASE_WIDTH / 2, 250, 'logo').setDepth(100);
-        setHeight(flappybird, 700)
-
-        const createText = ({ text, fontSize, pos, onPointDown }: any) => {
-            const button = this.add.text(pos.x, pos.y, text, {
-                fontFamily: 'Arial Black',
-                fontSize: fontSize + 'px',
-                color: '#ffffff',
-                stroke: "#000000",
-                strokeThickness: 5,
-                align: 'center'
-            }).setOrigin(0.5).setDepth(100)
-                .setInteractive().on('pointerdown', onPointDown);
-
-            button.on('pointerover', () => {
-                button.setStyle({ color: primary });
-                this.input.manager.canvas.style.cursor = 'pointer';
-            });
-
-            button.on('pointerout', () => {
-                button.setStyle({ color: '#ffffff' });
-                this.input.manager.canvas.style.cursor = 'default';
-            });
-            return button
-        }
+        setHeight(flappybird, Math.min(700, BASE_WIDTH * 0.88))
+        this.tweens.add({ targets: flappybird, y: 265, angle: 2, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        const mascotX = Math.min(BASE_WIDTH * 0.82, BASE_WIDTH / 2 + 320);
+        const mascot = this.add.image(mascotX, 545, 'character').setDepth(90);
+        setHeight(mascot, 72);
+        this.tweens.add({ targets: mascot, x: Math.max(BASE_WIDTH * 0.58, mascotX - 60), y: 515, angle: { from: -8, to: 8 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
         this.inputUsername = document.createElement('input');
         this.inputUsername.type = 'text';
@@ -71,6 +55,7 @@ export class Intro extends Scene {
                 return;
             }
             localStorage.setItem('username', value);
+            refreshMusic();
             this.inputUsername.remove();
             this.scene.start('LevelI');
         };
@@ -81,7 +66,6 @@ export class Intro extends Scene {
             .on('pointerdown', () => {
                 if (!this.scale.isFullscreen) {
                     this.scale.startFullscreen();
-                    this.scale.resize(BASE_WIDTH, BASE_HEIGHT);
                 } else {
                     this.scale.stopFullscreen();
                 }
@@ -128,6 +112,7 @@ export class Intro extends Scene {
             this.input.manager.canvas.style.cursor = 'default';
         });
         setHeight(startBtn, 200)
+        this.tweens.add({ targets: startBtn, scale: { from: 0.65, to: 0.69 }, duration: 850, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
         // SCOREBOARD
         const scoreboard = this.add.image(BASE_WIDTH / 2, 780, 'dashboard')
@@ -139,6 +124,7 @@ export class Intro extends Scene {
             });
 
         setHeight(scoreboard, 300)
+        this.tweens.add({ targets: scoreboard, y: 795, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
         scoreboard.on('pointerover', () => {
             this.tweens.add({
                 targets: scoreboard, scale: 0.7,
@@ -153,6 +139,21 @@ export class Intro extends Scene {
             });
             this.input.manager.canvas.style.cursor = 'default';
         });
+
+        const settingsButton = this.add.text(BASE_WIDTH - 150, 125, '⚙  SETTINGS', {
+            fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff',
+            backgroundColor: '#173f3a', padding: { x: 16, y: 12 },
+            stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5).setDepth(150).setInteractive({ useHandCursor: true });
+        settingsButton.on('pointerdown', () => {
+            const parent = this.game.canvas.parentElement;
+            if (parent) openSettings(parent);
+        });
+        settingsButton.on('pointerover', () => {
+            this.tweens.add({ targets: settingsButton, scale: 1.08, duration: 140, yoyo: true });
+            this.input.manager.canvas.style.cursor = 'pointer';
+        });
+        settingsButton.on('pointerout', () => { this.input.manager.canvas.style.cursor = 'default'; });
 
         EventBus.emit('current-scene-ready', this);
 

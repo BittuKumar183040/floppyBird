@@ -15,6 +15,7 @@ body {
 #root, #app {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     display: grid;
     place-items: center;
 }
@@ -23,6 +24,7 @@ body {
     position: relative;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     touch-action: manipulation;
 }
@@ -30,8 +32,72 @@ body {
 #game-container canvas {
     display: block;
     margin: auto;
-    border-radius: 12px;
+    border-radius: 0;
     box-shadow: 0 24px 80px rgba(0, 0, 0, .38);
+}
+
+.settings-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(8, 25, 32, .68);
+    backdrop-filter: blur(7px);
+    color: #17342d;
+}
+
+.settings-card {
+    position: relative;
+    width: min(440px, 92vw);
+    padding: 34px;
+    border: 2px solid rgba(180, 255, 125, .85);
+    border-radius: 24px;
+    background: linear-gradient(145deg, #ffffff, #e9f7e8);
+    box-shadow: 0 24px 90px rgba(0, 0, 0, .4);
+    animation: settings-enter .22s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.settings-card h2 {
+    margin-bottom: 24px;
+    color: #173f3a;
+    font-size: 28px;
+    text-align: center;
+}
+
+.settings-close {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 50%;
+    background: #dff1dc;
+    color: #17342d;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+.settings-option, .settings-difficulty > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.settings-option { padding: 13px 0; border-bottom: 1px solid #d6e5d3; }
+.settings-option input { width: 22px; height: 22px; accent-color: #4e9a54; cursor: pointer; }
+.settings-difficulty { display: block; padding-top: 22px; }
+.settings-difficulty input { width: 100%; margin: 22px 0 8px; accent-color: #4e9a54; cursor: pointer; }
+.settings-difficulty small { display: flex; justify-content: space-between; color: #58746b; font-size: 11px; font-weight: 800; }
+
+@keyframes settings-enter {
+    from { opacity: 0; transform: translateY(14px) scale(.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 #game-container input::placeholder {

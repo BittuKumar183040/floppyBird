@@ -1,9 +1,11 @@
 import { Scene } from "phaser";
 import { BASE_HEIGHT, BASE_WIDTH, primary } from "../config/config";
-import { getHighScore, setHeight, submitScore } from "../controller/methods";
+import { getHighScore, setHeight } from "../controller/methods";
+import { refreshMusic, saveScore } from "../controller/preferences";
 
 interface ObjProp {
 	score: number | undefined;
+	previousBest?: number;
 }
 
 export class GameOver extends Scene {
@@ -22,7 +24,7 @@ export class GameOver extends Scene {
 		this.load.image('logo', 'logo.png');
 	}
 
-	async create(obj: ObjProp) {
+	create(obj: ObjProp) {
 		this.gradientGraphics = this.add.graphics();
 		this.drawGradientBackground();
 
@@ -38,7 +40,7 @@ export class GameOver extends Scene {
 		}).setOrigin(1).setDepth(100);
 
 		const best = Number(getHighScore());
-		const newRecord = (obj.score ?? 0) > this.previousBest;
+		const newRecord = (obj.score ?? 0) > (obj.previousBest ?? this.previousBest);
 		if (newRecord) localStorage.setItem('highscore', String(obj.score));
 		this.add.text(BASE_WIDTH / 2, 70, `${newRecord ? 'NEW PERSONAL BEST!' : 'PERSONAL BEST'} : ${Math.max(best, obj.score ?? 0)}`, {
 			fontFamily: 'Arial Black',
@@ -57,7 +59,8 @@ export class GameOver extends Scene {
 			strokeThickness: 5, align: 'center',
 		}).setOrigin(0.5).setDepth(100);
 
-		const btn_yes = this.add.text(BASE_WIDTH / 2 - 200, BASE_HEIGHT - 200, 'YES', {
+		const buttonOffset = Math.min(200, BASE_WIDTH * 0.2);
+		const btn_yes = this.add.text(BASE_WIDTH / 2 - buttonOffset, BASE_HEIGHT - 200, 'YES', {
 			fontFamily: 'Arial Black', fontSize: '55px',
 			color: '#ffffff', stroke: "#000000",
 			strokeThickness: 5, align: 'center',
@@ -76,7 +79,7 @@ export class GameOver extends Scene {
 			this.input.manager.canvas.style.cursor = 'default';
 		});
 
-		const btn_no = this.add.text(BASE_WIDTH / 2 + 200, BASE_HEIGHT - 200, 'NO', {
+		const btn_no = this.add.text(BASE_WIDTH / 2 + buttonOffset, BASE_HEIGHT - 200, 'NO', {
 			fontFamily: 'Arial Black', fontSize: '55px',
 			color: '#ffffff', stroke: "#000000",
 			strokeThickness: 5, align: 'center',
@@ -93,10 +96,9 @@ export class GameOver extends Scene {
 			btn_no.setStyle({ color: "#ffffff", fontSize: '55px' });
 			this.input.manager.canvas.style.cursor = 'default';
 		});
-		let username = localStorage.getItem("username")
-		if (username && (obj.score ?? 0) > 0) {
-			await submitScore(username, obj.score ?? 0)
-		}
+		const username = localStorage.getItem("username") || 'Guest';
+		saveScore(username, obj.score ?? 0);
+		refreshMusic();
 		this.input.keyboard?.on('keydown-SPACE', () => this.scene.start('LevelI'));
 		this.input.keyboard?.on('keydown-ENTER', () => this.scene.start('LevelI'));
 

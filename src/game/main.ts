@@ -11,10 +11,10 @@ const config: Types.Core.GameConfig = {
     height: BASE_HEIGHT,
     parent: 'game-container',
     backgroundColor: '#fff',
-    fps: { target: 60, forceSetTimeOut: true },
+    fps: { target: 60, forceSetTimeOut: false },
     scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.NO_CENTER
+        mode: Phaser.Scale.ENVELOP,
+        autoCenter: Phaser.Scale.CENTER_BOTH
     },
     scene: [
         Intro,

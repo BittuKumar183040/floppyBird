@@ -1,111 +1,71 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
-import { backendurl, BASE_HEIGHT, BASE_WIDTH, primary } from '../config/config';
+import { BASE_HEIGHT, BASE_WIDTH } from '../config/config';
+import { getHighScore } from '../controller/methods';
+import { getScoreHistory, openSettings } from '../controller/preferences';
 
 export class LevelII extends Scene {
-  constructor() {
-    super('LevelII');
-  }
-
-  async fetchScoreboard() {
-    try {
-      if (!backendurl) throw new Error('Scoreboard service is not configured');
-      const response = await fetch(`${backendurl}/scoreboard/flappybird`);
-      if (!response.ok) throw new Error(`Scoreboard request failed (${response.status})`);
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Error fetching scoreboard:", error);
-      return [{ score: 0, username: 'Failed to load scoreboard' }];
-    }
-  }
+  constructor() { super('LevelII'); }
 
   preload() {
     this.load.setPath('assets');
     this.load.image('background', 'bg.png');
-    this.load.svg('fullScreen', 'fullscreen.svg');
   }
 
   create() {
-    const screen = this.add.image(0, 0, 'background').setOrigin(0, 0);
-    screen.displayHeight = BASE_HEIGHT;
-    screen.displayWidth = BASE_WIDTH;
+    const background = this.add.image(0, 0, 'background').setOrigin(0);
+    background.setDisplaySize(BASE_WIDTH, BASE_HEIGHT);
+    const username = localStorage.getItem('username')?.trim() || '';
+    const history = getScoreHistory()
+      .filter((record) => !username || record.username.toLowerCase() === username.toLowerCase())
+      .slice(0, 10);
+    const best = getHighScore();
 
-    const createText = ({ text, fontSize, pos, onPointDown, origin = 0.5 }: any) => {
-      const button = this.add.text(pos.x, pos.y, text, {
-        fontFamily: 'Arial Black', fontSize: fontSize + 'px',
-        color: '#ffffff', stroke: "#000000",
-        strokeThickness: 5, align: 'center'
-      }).setOrigin(origin).setDepth(100)
-        .setInteractive().on('pointerdown', onPointDown);
+    this.add.text(BASE_WIDTH / 2, 110, username ? `${username}'S FLIGHT HISTORY` : 'FLIGHT HISTORY', {
+      fontFamily: 'Arial Black', fontSize: '44px', color: '#ffffff',
+      stroke: '#17342d', strokeThickness: 7, align: 'center',
+    }).setOrigin(0.5);
+    this.add.text(BASE_WIDTH / 2, 185, `PERSONAL BEST  ${best}   •   ${history.length} RUN${history.length === 1 ? '' : 'S'}`, {
+      fontFamily: 'Arial Black', fontSize: '25px', color: '#dfffcb',
+      stroke: '#17342d', strokeThickness: 5,
+    }).setOrigin(0.5);
 
-      button.on('pointerover', () => {
-        button.setStyle({ color: primary });
-        this.input.manager.canvas.style.cursor = 'pointer';
+    const headerY = 280;
+    const left = BASE_WIDTH / 2 - Math.min(420, BASE_WIDTH * 0.35);
+    this.add.text(left, headerY, 'RUN', { fontSize: '22px', color: '#b4ff7d', fontStyle: 'bold' }).setOrigin(0, 0.5);
+    this.add.text(BASE_WIDTH / 2, headerY, 'DATE', { fontSize: '22px', color: '#b4ff7d', fontStyle: 'bold' }).setOrigin(0.5);
+    this.add.text(BASE_WIDTH / 2 + Math.min(420, BASE_WIDTH * 0.35), headerY, 'SCORE', { fontSize: '22px', color: '#b4ff7d', fontStyle: 'bold' }).setOrigin(1, 0.5);
+
+    if (history.length === 0) {
+      this.add.text(BASE_WIDTH / 2, 430, 'No flights saved yet.\nPlay a round and your scores will appear here!', {
+        fontFamily: 'Arial Black', fontSize: '28px', color: '#ffffff',
+        stroke: '#17342d', strokeThickness: 5, align: 'center', lineSpacing: 14,
+      }).setOrigin(0.5);
+    } else {
+      history.forEach((record, index) => {
+        const y = 335 + index * 54;
+        const row = this.add.rectangle(BASE_WIDTH / 2, y, Math.min(BASE_WIDTH * 0.78, 930), 44, index === 0 ? 0x285f53 : 0x173f3a, index === 0 ? 0.9 : 0.68);
+        row.setStrokeStyle(index === 0 ? 2 : 1, index === 0 ? 0xb4ff7d : 0xffffff, 0.28);
+        this.add.text(left, y, `#${index + 1}`, { fontSize: '20px', color: '#ffffff' }).setOrigin(0, 0.5);
+        this.add.text(BASE_WIDTH / 2, y, new Date(record.date).toLocaleDateString(), { fontSize: '20px', color: '#ffffff' }).setOrigin(0.5);
+        this.add.text(BASE_WIDTH / 2 + Math.min(420, BASE_WIDTH * 0.35), y, `${record.score}`, {
+          fontFamily: 'Arial Black', fontSize: '23px', color: index === 0 ? '#b4ff7d' : '#ffffff',
+        }).setOrigin(1, 0.5);
       });
+    }
 
-      button.on('pointerout', () => {
-        button.setStyle({ color: '#ffffff' });
-        this.input.manager.canvas.style.cursor = 'default';
-      });
-      return button;
-    };
+    const back = this.add.text(BASE_WIDTH / 2, BASE_HEIGHT - 100, '←  BACK TO FLIGHT', {
+      fontFamily: 'Arial Black', fontSize: '28px', color: '#ffffff',
+      backgroundColor: '#173f3a', padding: { x: 22, y: 14 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    back.on('pointerover', () => this.tweens.add({ targets: back, scale: 1.06, duration: 120 }));
+    back.on('pointerout', () => this.tweens.add({ targets: back, scale: 1, duration: 120 }));
+    back.on('pointerdown', () => this.scene.start('Intro'));
 
-    createText({
-      text: `◀️ B A C K`,
-      fontSize: 32, onPointDown: () => { this.scene.start('Intro'); },
-      pos: { x: 200, y: 200 }
-    });
-
-    createText({
-      text: `S C O R E   B O A R D`,
-      fontSize: 32, onPointDown: () => { },
-      pos: { x: BASE_WIDTH / 2, y: 300 }
-    });
-
-    const loadingText = this.add.text(BASE_WIDTH / 2, 400, "Loading...", {
-      fontFamily: 'Arial Black', align: 'center',
-      fontSize: '32px', color: '#ffffff',
-      stroke: "#000000", strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(100);
-
-    this.tweens.add({
-      targets: loadingText,
-      alpha: { from: 1, to: 0.3 },
-      duration: 500, yoyo: true,
-      repeat: -1
-    });
-
-    this.fetchScoreboard().then(scoreboardData => {
-      loadingText.destroy();
-
-      if (!Array.isArray(scoreboardData)) {
-        console.error("Invalid scoreboard data format:", scoreboardData);
-        return;
-      }
-
-      if (scoreboardData.length === 0) {
-        createText({ text: 'No scores yet — be the first!', fontSize: 28, onPointDown: () => {}, pos: { x: BASE_WIDTH / 2, y: 430 } });
-        return;
-      }
-
-      scoreboardData.forEach(({ username, score }, index) => {
-        createText({
-          text: `${username}`, fontSize: 32,
-          onPointDown: () => { },
-          pos: { x: BASE_WIDTH / 2 - 300, y: 400 + (60 * index) },
-          origin: 0
-        });
-
-        createText({
-          text: `${score}`, fontSize: 32,
-          onPointDown: () => { },
-          pos: { x: BASE_WIDTH / 2 + 300, y: 400 + (60 * index) },
-          origin: 0
-        });
-      });
-    });
-
+    const settings = this.add.text(BASE_WIDTH - 30, 30, '⚙', {
+      fontSize: '36px', color: '#ffffff', backgroundColor: '#173f3a', padding: { x: 12, y: 6 },
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    settings.on('pointerdown', () => { const parent = this.game.canvas.parentElement; if (parent) openSettings(parent); });
     EventBus.emit('current-scene-ready', this);
   }
 }

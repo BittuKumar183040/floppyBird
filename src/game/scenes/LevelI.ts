@@ -2,6 +2,7 @@ import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config/config';
 import { getHighScore, setHeight } from '../controller/methods';
+import { getPreferences, openSettings, playEffect, refreshMusic } from '../controller/preferences';
 
 
 const width = BASE_WIDTH;
@@ -12,14 +13,17 @@ export class LevelI extends Scene {
     private fpsText!: Phaser.GameObjects.Text;
     private scoreNumber: number = 0; // Score value
     private scoreText!: Phaser.GameObjects.Text; // Score display
-    private readonly pipeVelocity: number = -400;
     pipeGroup!: Phaser.Physics.Arcade.Group;
     pipeTimer!: Phaser.Time.TimerEvent;
-    private currentPipePos = width;
+    private bird!: Phaser.Types.Physics.Arcade.ImageWithDynamicBody;
     private paused = false;
     private gameEnded = false;
     private pauseLabel!: Phaser.GameObjects.Text;
     private readyLabel!: Phaser.GameObjects.Text;
+    private countdown = 3;
+    private gameStarted = false;
+    private bestAtStart = 0;
+    private recordBanner?: Phaser.GameObjects.Text;
 
     constructor() {
         super('LevelI');
@@ -27,9 +31,12 @@ export class LevelI extends Scene {
 
     init() {
         this.scoreNumber = 0;
-        this.currentPipePos = width;
         this.paused = false;
         this.gameEnded = false;
+        this.countdown = 3;
+        this.gameStarted = false;
+        this.bestAtStart = Number(getHighScore());
+        this.recordBanner = undefined;
     }
 
     preload() {
@@ -41,16 +48,14 @@ export class LevelI extends Scene {
     }
 
     handleUpMovement(bird: Phaser.Types.Physics.Arcade.ImageWithDynamicBody) {
+        if (!this.gameStarted) return;
         bird.setVelocityY(-400);
-        bird.setAngle(-25);
-        this.time.delayedCall(200, () => {
-            bird.setAngle(0);
-        });
+        playEffect('flap');
     }
 
     create() {
 
-        this.physics.world.gravity.y = 800;
+        this.physics.world.gravity.y = 0;
         const screen = this.add.image(0, 0, 'background').setInteractive().setOrigin(0, 0);
         screen.displayHeight = height;
         screen.displayWidth = width;
@@ -67,39 +72,67 @@ export class LevelI extends Scene {
             fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff',
             backgroundColor: '#17342d', padding: { x: 14, y: 10 }
         }).setOrigin(1, 0).setDepth(500).setInteractive({ useHandCursor: true });
-        this.pauseLabel.on('pointerdown', () => this.togglePause());
+        this.pauseLabel.on('pointerdown', (_pointer, _x, _y, event) => {
+            event.stopPropagation();
+            this.togglePause();
+        });
         this.add.text(width / 2, height - 38, 'TAP OR PRESS SPACE TO FLAP  •  P TO PAUSE', {
             fontSize: '20px', color: '#ffffff', stroke: '#17342d', strokeThickness: 5
         }).setOrigin(0.5).setDepth(500);
-        this.readyLabel = this.add.text(width / 2, height / 2 - 120, 'GET READY', {
-            fontFamily: 'Arial Black', fontSize: '38px', color: '#ffffff',
+        this.readyLabel = this.add.text(width / 2, height / 2 - 120, '3', {
+            fontFamily: 'Arial Black', fontSize: '110px', color: '#ffffff',
             stroke: '#17342d', strokeThickness: 7
         }).setOrigin(0.5).setDepth(500);
-        this.time.delayedCall(900, () => { if (this.readyLabel.active) this.readyLabel.setText('FLAP!'); });
-        this.time.delayedCall(1600, () => this.readyLabel?.destroy());
+        this.tweens.add({ targets: this.readyLabel, scale: { from: 0.75, to: 1.15 }, alpha: { from: 0.7, to: 1 }, duration: 500, yoyo: true, repeat: 5 });
+        this.time.addEvent({ delay: 1000, repeat: 2, callback: () => {
+            this.countdown -= 1;
+            if (this.countdown > 0) this.readyLabel.setText(`${this.countdown}`);
+            else {
+                this.readyLabel.setText('FLAP!');
+                this.gameStarted = true;
+                this.physics.world.gravity.y = 800;
+                this.pipeTimer = this.time.delayedCall(600, () => this.PipesSpawn());
+                refreshMusic();
+                this.time.delayedCall(500, () => this.readyLabel?.destroy());
+            }
+        } });
 
         const bird = this.physics.add.image(250, height / 2, 'character').setDepth(100);
+        this.bird = bird;
         setHeight(bird, 60);
         bird.setCollideWorldBounds(true);
 
         screen.on('pointerdown', () => { if (!this.paused && !this.gameEnded) this.handleUpMovement(bird); });
 
         this.input.keyboard?.on('keydown-SPACE', () => {
-            if (!this.paused && !this.gameEnded) this.handleUpMovement(bird)
+            if (!this.paused && !this.gameEnded && this.gameStarted) this.handleUpMovement(bird)
         });
         this.input.keyboard?.on('keydown-P', () => this.togglePause());
         this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
 
-        this.pipeGroup = this.physics.add.group({
-            allowGravity: false,
+        const settingsButton = this.add.text(width - 205, 24, '⚙', {
+            fontSize: '24px', color: '#ffffff', backgroundColor: '#17342d', padding: { x: 13, y: 9 }
+        }).setOrigin(1, 0).setDepth(500).setInteractive({ useHandCursor: true });
+        settingsButton.on('pointerdown', (_pointer, _x, _y, event) => {
+            event.stopPropagation();
+            const parent = this.game.canvas.parentElement;
+            if (!parent || this.gameEnded) return;
+            this.paused = true;
+            this.physics.world.pause();
+            this.time.paused = true;
+            this.pauseLabel.setText('▶  RESUME');
+            openSettings(parent, () => {
+                if (!this.gameEnded && this.scene.isActive()) {
+                    this.paused = false;
+                    this.physics.world.resume();
+                    this.time.paused = false;
+                    this.pauseLabel.setText('Ⅱ  PAUSE');
+                }
+            });
         });
 
-        const pipeSpawnDelay = (this.scale.width / Math.abs(this.pipeVelocity)) * 300;
-        this.pipeTimer = this.time.addEvent({
-            delay: pipeSpawnDelay,
-            callback: () => this.PipesSpawn(),
-            callbackScope: this,
-            loop: true,
+        this.pipeGroup = this.physics.add.group({
+            allowGravity: false,
         });
 
         this.physics.add.collider(bird, this.pipeGroup, this.handleCollision, undefined, this);
@@ -137,8 +170,9 @@ export class LevelI extends Scene {
     handleCollision() {
         if (this.gameEnded) return;
         this.gameEnded = true;
+        playEffect('dead');
         this.scene.pause()
-        this.scene.start('GameOver', { score: this.scoreNumber })
+        this.scene.start('GameOver', { score: this.scoreNumber, previousBest: this.bestAtStart })
     }
 
     removePipe(pipe: Phaser.Physics.Arcade.Sprite) {
@@ -146,25 +180,28 @@ export class LevelI extends Scene {
     }
 
     PipesSpawn() {
-        const pipeY = Phaser.Math.Between(-200, 250); // Random vertical position
+        if (!this.gameStarted || this.gameEnded) return;
+        const difficulty = getPreferences().difficulty;
+        const speed = (400 + Math.min(this.scoreNumber * 5, 160)) * difficulty;
+        const pipeGap = Phaser.Math.Clamp(300 / difficulty - this.scoreNumber * 2, 180, 430);
+        const spawnX = this.scale.width + PIPE_WIDTH;
+        const pipeY = Phaser.Math.Between(-200, 250);
 
-        const pipeTop = this.pipeGroup.create(this.currentPipePos, pipeY, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
+        const pipeTop = this.pipeGroup.create(spawnX, pipeY, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
         setHeight(pipeTop, PIPE_WIDTH);
         pipeTop.setImmovable(true);
-        pipeTop.setVelocityX(this.pipeVelocity);
+        pipeTop.setVelocityX(-speed);
         pipeTop.setFlipY(true);
 
-        const pipeBottom = this.pipeGroup.create(this.currentPipePos, pipeTop.displayHeight + pipeY + 200, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
+        const pipeBottom = this.pipeGroup.create(spawnX, pipeTop.displayHeight + pipeY + pipeGap, 'pipe').setDepth(100) as Phaser.Physics.Arcade.Sprite;
         setHeight(pipeBottom, PIPE_WIDTH);
         pipeBottom.setImmovable(true);
-        pipeBottom.setVelocityX(this.pipeVelocity);
-
-        this.currentPipePos = this.currentPipePos + Phaser.Math.Clamp(300 - this.scoreNumber * 3, 220, 300);
-        const speed = -(400 + Math.min(this.scoreNumber * 5, 160));
-        pipeTop.setVelocityX(speed);
-        pipeBottom.setVelocityX(speed);
+        pipeBottom.setVelocityX(-speed);
 
         pipeTop.setData('scored', false);
+
+        const nextDelay = Math.max(420, pipeGap / speed * 1000);
+        this.pipeTimer = this.time.delayedCall(nextDelay, () => this.PipesSpawn());
 
         this.pipeGroup.children.iterate((pipe) => {
             const sprite = pipe as Phaser.Physics.Arcade.Sprite;
@@ -175,7 +212,7 @@ export class LevelI extends Scene {
         });
     }
 
-    update() {
+    update(_time: number, delta: number) {
 
         this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);
 
@@ -193,17 +230,34 @@ export class LevelI extends Scene {
             }
             return null;
         });
+
+        if (this.bird?.active) {
+            const targetAngle = Phaser.Math.Clamp(this.bird.body.velocity.y * 0.055, -24, 80);
+            this.bird.angle = Phaser.Math.Linear(this.bird.angle, targetAngle, Math.min(1, delta / 90));
+        }
     }
 
     handleScoreCount() {
         this.scoreNumber += 1;
-        const high_score = ~~getHighScore()
-        if (this.scoreNumber > high_score) {
-
+        if (this.scoreNumber > this.bestAtStart) {
             localStorage.setItem("highscore", "" + this.scoreNumber)
+            if (!this.recordBanner) this.showNewRecord();
+        } else {
+            playEffect('score');
         }
 
         this.scoreText.setText(`${this.scoreNumber}`);
         this.tweens.add({ targets: this.scoreText, scale: 1.18, duration: 90, yoyo: true, ease: 'Quad.out' });
+    }
+
+    private showNewRecord() {
+        playEffect('record');
+        this.recordBanner = this.add.text(width / 2, height / 2 - 230, '✦  NEW PERSONAL BEST!  ✦', {
+            fontFamily: 'Arial Black', fontSize: '36px', color: '#fff4a8',
+            stroke: '#7e4315', strokeThickness: 8,
+            shadow: { color: '#ffdc55', blur: 22, fill: true, stroke: true }
+        }).setOrigin(0.5).setDepth(700).setScale(0.4).setAlpha(0);
+        this.tweens.add({ targets: this.recordBanner, scale: 1, alpha: 1, y: height / 2 - 260, duration: 420, ease: 'Back.Out' });
+        this.tweens.add({ targets: this.recordBanner, angle: { from: -3, to: 3 }, duration: 180, yoyo: true, repeat: 5, delay: 420 });
     }
 }
